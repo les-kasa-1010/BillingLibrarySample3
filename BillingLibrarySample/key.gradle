@@ -1,0 +1,9 @@
+// APK Signing for billing
+signingConfigs {
+    debug {
+        storeFile file('./MY.keystore')
+        storePassword 'password'
+        keyAlias 'alias'
+        keyPassword 'password'
+    }
+}
