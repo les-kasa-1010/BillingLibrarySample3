@@ -71,7 +71,6 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 
     // appended
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2'
     implementation 'com.google.android.material:material:1.2.1'
 
     // ViewModel and liveData
