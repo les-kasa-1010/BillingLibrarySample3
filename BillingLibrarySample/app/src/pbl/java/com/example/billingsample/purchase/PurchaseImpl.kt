@@ -8,3 +8,7 @@ import com.android.billingclient.api.Purchase
  */
 
 typealias PurchaseImpl = Purchase
+
+fun PurchaseImpl.isPending(): Boolean {
+    return purchaseState == Purchase.PurchaseState.PENDING
+}

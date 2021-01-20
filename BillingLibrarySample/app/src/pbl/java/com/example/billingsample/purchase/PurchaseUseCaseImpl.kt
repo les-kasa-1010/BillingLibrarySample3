@@ -3,7 +3,10 @@ package com.example.billingsample.purchase
 import android.app.Activity
 import android.util.Log
 import com.android.billingclient.api.*
-import com.example.billingsample.model.*
+import com.example.billingsample.model.PurchaseData
+import com.example.billingsample.model.SKU_ITEM_100
+import com.example.billingsample.model.SKU_ITEM_10000
+import com.example.billingsample.model.SKU_STATIC_TEST
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,13 +47,30 @@ class PurchaseUseCaseImpl : PurchaseUseCase {
                     // will handle server verification, consumables, and updating the local cache
                     purchases?.apply {
                         for (purchase in purchases) {
-                            // static responseは署名データがないので署名チェックはパス
-                            if (SKU_STATIC_TEST == purchase.sku || isSignatureValid(purchase)) {
-                                Log.d(TAG, "Purchase successful.")
-                                val deferred = pendingPurchaseFlows.remove(purchase.sku)
-                                deferred?.complete(purchase)
-                                // deferredがnullの場合は、以前の保留トランザクションが外部で完了したことになる
-                                // (コンビニで支払ったなど)
+                            when (purchase.purchaseState) {
+                                Purchase.PurchaseState.PURCHASED -> {
+                                    // static responseは署名データがないので署名チェックはパス
+                                    if (SKU_STATIC_TEST == purchase.sku || isSignatureValid(purchase)) {
+                                        Log.d(TAG, "Purchase successful.")
+                                        Log.d(
+                                            TAG,
+                                            "purchase attrs = ${purchase.accountIdentifiers?.obfuscatedAccountId} : " +
+                                                    "${purchase.accountIdentifiers?.obfuscatedProfileId} "
+                                        )
+                                        val deferred = pendingPurchaseFlows.remove(purchase.sku)
+                                        deferred?.complete(purchase)
+                                        // deferredがnullの場合は、以前の保留トランザクションが外部で完了したことになる
+                                        // (コンビニで支払ったなど)
+                                    }
+                                }
+                                Purchase.PurchaseState.PENDING -> {
+                                    Log.d(TAG, "Purchase is pending.")
+                                  val deferred = pendingPurchaseFlows.remove(purchase.sku)
+                                    deferred?.complete(purchase)
+                                }
+                                else -> {
+                                    Log.d(TAG, "Purchase status is UNSPECIFIED.")
+                                }
                             }
                         }
                     }
@@ -146,6 +166,8 @@ class PurchaseUseCaseImpl : PurchaseUseCase {
         val skuDetails = skuDetailsMap[sku]!!
         val purchaseParams = BillingFlowParams.newBuilder()
             .setSkuDetails(skuDetails)
+            .setObfuscatedAccountId("accountId") // FIXME 難読化が必要
+            .setObfuscatedProfileId("profileId") // FIXME 難読化が必要
             .build()
 
         val currentPurchaseFlow = CompletableDeferred<Purchase?>()
