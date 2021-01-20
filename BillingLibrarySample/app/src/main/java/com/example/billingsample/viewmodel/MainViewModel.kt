@@ -12,6 +12,7 @@ import com.example.billingsample.model.PurchaseData.Companion.STORED
 import com.example.billingsample.model.PurchaseLogRepository
 import com.example.billingsample.purchase.PurchaseImpl
 import com.example.billingsample.purchase.PurchaseUseCaseImpl
+import com.example.billingsample.purchase.isPending
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -134,19 +135,25 @@ class MainViewModel(private val repository: PurchaseLogRepository) : ViewModel()
         // 非同期で起動
         viewModelScope.launch(Dispatchers.Main) {
             val purchased = purchaseUseCase.purchaseItem(activity, productId)
-            if (purchased == null) {
-                appendPurchaseStatus("Cancel or error.")
-            } else {
-                // 結果を保存
-                storePurchaseData(
-                    purchased.orderId,
-                    purchased.originalJson,
-                    purchased.signature
-                )
-                appendPurchaseStatus(STORED)
+            when {
+                purchased == null -> {
+                    appendPurchaseStatus("Cancel or error.")
+                }
+                purchased.isPending() -> {
+                    appendPurchaseStatus("Pending transaction.")
+                }
+                else -> {
+                    // 結果を保存
+                    storePurchaseData(
+                        purchased.orderId,
+                        purchased.originalJson,
+                        purchased.signature
+                    )
+                    appendPurchaseStatus(STORED)
 
-                // コミットAPI呼び出し
-                commitPurchase(purchased)
+                    // コミットAPI呼び出し
+                    commitPurchase(purchased)
+                }
             }
         }
     }
