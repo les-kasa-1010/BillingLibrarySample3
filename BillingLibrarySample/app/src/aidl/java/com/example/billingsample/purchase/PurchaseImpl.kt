@@ -7,3 +7,5 @@ import com.example.billingsample.purchase.util.Purchase
  */
 
 typealias PurchaseImpl = Purchase
+
+fun PurchaseImpl.isPending() = false
