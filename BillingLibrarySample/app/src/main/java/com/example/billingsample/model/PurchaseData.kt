@@ -29,6 +29,8 @@ data class PurchaseData(
 
 // アプリで使う課金アイテムID
 // 任意に書き変えて下さい。
+// 実際に購入可能にするには、先にプレイストアにアプリをアップロードし、内部テスト以上のステージにに公開し、
+// 課金アイテムを登録しておく必要があります
 const val SKU_ITEM_100 = "com.example.item.100"
 const val SKU_ITEM_10000 = "com.example.item.10000"
 const val SKU_STATIC_TEST = "android.test.purchased"
