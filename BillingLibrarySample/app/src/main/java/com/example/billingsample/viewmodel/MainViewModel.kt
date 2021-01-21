@@ -8,6 +8,7 @@ import com.example.billingsample.model.PurchaseData
 import com.example.billingsample.model.PurchaseData.Companion.COMMITTING
 import com.example.billingsample.model.PurchaseData.Companion.COMPLETE
 import com.example.billingsample.model.PurchaseData.Companion.CONSUMING
+import com.example.billingsample.model.PurchaseData.Companion.PENDING
 import com.example.billingsample.model.PurchaseData.Companion.STORED
 import com.example.billingsample.model.PurchaseLogRepository
 import com.example.billingsample.purchase.PurchaseImpl
@@ -62,8 +63,8 @@ class MainViewModel(private val repository: PurchaseLogRepository) : ViewModel()
     // Database -----------------------------------------------------------
 
     // レシートをDBに初回登録
-    private fun storePurchaseData(orderId: String, jsonString: String, signature: String) {
-        val status = STORED
+    private fun storePurchaseData(
+        orderId: String, jsonString: String, signature: String, status: String) {
         viewModelScope.launch {
             repository.insert(PurchaseData(0, orderId, jsonString, signature, status))
         }
@@ -139,20 +140,27 @@ class MainViewModel(private val repository: PurchaseLogRepository) : ViewModel()
                 purchased == null -> {
                     appendPurchaseStatus("Cancel or error.")
                 }
-                purchased.isPending() -> {
-                    appendPurchaseStatus("Pending transaction.")
-                }
                 else -> {
+                    val status =
+                        if (purchased.isPending()) {
+                            appendPurchaseStatus("PENDING TRANSACTION !!")
+                            PENDING
+                        } else {
+                            STORED
+                        }
                     // 結果を保存
                     storePurchaseData(
                         purchased.orderId,
                         purchased.originalJson,
-                        purchased.signature
+                        purchased.signature,
+                        status
                     )
-                    appendPurchaseStatus(STORED)
+                    appendPurchaseStatus(status)
 
                     // コミットAPI呼び出し
-                    commitPurchase(purchased)
+                    if (!purchased.isPending()) {
+                        commitPurchase(purchased)
+                    }
                 }
             }
         }
@@ -176,11 +184,24 @@ class MainViewModel(private val repository: PurchaseLogRepository) : ViewModel()
             } else {
                 list.forEach {
                     val item = repository.find(it.orderId)
-                    if (item == null) {
-                        // store ※SDKではこのタイミングでは保存していないが、全履歴に出てこなくなるため敢えて保存
-                        storePurchaseData(it.orderId, it.originalJson, it.signature)
-                    }
-                    sb.append("${it.orderId}")
+                    val stateString =
+                        if (item == null) {
+                            // store 全履歴に出てこなくなるため敢えて保存
+                            val status = if (it.isPending()) {
+                                PENDING
+                            } else {
+                                STORED
+                            }
+                            storePurchaseData(it.orderId, it.originalJson, it.signature, status)
+                            status
+                        } else if (!it.isPending() && item.status == PENDING) {
+                            // Pendingから変わったのでステータス変更
+                            updatePurchaseStatus(it.orderId, STORED)
+                            STORED
+                        } else {
+                            item.status
+                        }
+                    sb.append("${it.orderId} : $stateString")
 
                     if (it.developerPayload.isNotEmpty()) {
                         // AIDL版のレシートを発見
