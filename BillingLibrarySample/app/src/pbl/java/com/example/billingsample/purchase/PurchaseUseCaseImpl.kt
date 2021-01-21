@@ -39,6 +39,8 @@ class PurchaseUseCaseImpl : PurchaseUseCase {
     // 購入情報の変化を受け取るリスナー
     private val purchasesUpdatedListener =
         PurchasesUpdatedListener { billingResult, purchases ->
+            Log.d(TAG, "onPurchasesUpdated.")
+
             // 購入完了後の処理(AIDL時代のonActivityResult後の処理と同等。ただし、保留トランザクション対応のため、
             // この関数はアプリのonResumeなどでも呼ばれないと行けないらしい。
             // 購入結果が1件とは限らないため、リストで返るのが難点か)
@@ -163,7 +165,11 @@ class PurchaseUseCaseImpl : PurchaseUseCase {
 
     override suspend fun purchaseItem(activity: Activity, sku: String): PurchaseImpl? {
         // 購入用のパラメータを作成
-        val skuDetails = skuDetailsMap[sku]!!
+        val skuDetails = skuDetailsMap[sku]
+        if( skuDetails==null ){
+            Log.e(TAG, "Cannot find sku($sku) details from PlayStore. Check app items on Play console.")
+            return null
+        }
         val purchaseParams = BillingFlowParams.newBuilder()
             .setSkuDetails(skuDetails)
             .setObfuscatedAccountId("accountId") // FIXME 難読化が必要
@@ -203,6 +209,7 @@ class PurchaseUseCaseImpl : PurchaseUseCase {
                 Log.d(TAG, "Received a pending purchase of SKU: ${purchase.sku}")
                 // handle pending purchases, e.g. confirm with users about the pending
                 // purchases, prompt them to complete it, etc.
+                validPurchases.add(purchase)
             }
         }
         return validPurchases
