@@ -19,6 +19,7 @@ data class PurchaseData(
 ) {
     // いわゆるstatic変数たち
     companion object {
+        const val PENDING = "取引完了待ち" //  // 遅延取引完了前
         const val STORED = "購入情報送信中" // 課金完了直後
         const val CONSUMING = "購入完了（同期中）" // コミットAPI終了、消費前
         const val COMMITTING = "照合待ち" // コミットAPIエラー終了、消費済み
