@@ -24,6 +24,7 @@ data class PurchaseData(
         const val CONSUMING = "購入完了（同期中）" // コミットAPI終了、消費前
         const val COMMITTING = "照合待ち" // コミットAPIエラー終了、消費済み
         const val COMPLETE = "購入完了" // 消費、コミット正常完了
+        const val CANCELED = "取引キャンセル"  // 遅延取引無効
     }
 }
 

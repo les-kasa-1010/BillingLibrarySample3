@@ -2,6 +2,7 @@ package com.example.billingsample.model
 
 import com.example.billingsample.model.PurchaseData.Companion.COMMITTING
 import com.example.billingsample.model.PurchaseData.Companion.CONSUMING
+import com.example.billingsample.model.PurchaseData.Companion.PENDING
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -34,10 +35,12 @@ class PurchaseLogRepository(private val dao: PurchaseDao) {
 
     // ローカルのみにある再送信レシートを取得
     // 数が多ければDBから取る方が早いが、Kotlinのフィルタリングで代用
-    // 対象としてピックアップするようにしている
-    // ストアの遅延レシートとローカルの遅延レシート、両方に挙がっていることになるが、表示上の重複削除は面倒なのでやっていない
     suspend fun getResendLocalReceipts(): List<PurchaseData> = withContext(Dispatchers.IO) {
         return@withContext getLocalPurchaseList().filter { it.status == COMMITTING || it.status == CONSUMING }
+    }
+
+    suspend fun getPendingLocalReceipts(): List<PurchaseData> = withContext(Dispatchers.IO) {
+        return@withContext getLocalPurchaseList().filter { it.status == PENDING }
     }
 
     // 1件検索

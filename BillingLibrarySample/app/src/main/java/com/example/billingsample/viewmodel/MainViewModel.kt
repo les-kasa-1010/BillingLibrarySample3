@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.*
 import com.example.billingsample.model.PurchaseData
+import com.example.billingsample.model.PurchaseData.Companion.CANCELED
 import com.example.billingsample.model.PurchaseData.Companion.COMMITTING
 import com.example.billingsample.model.PurchaseData.Companion.COMPLETE
 import com.example.billingsample.model.PurchaseData.Companion.CONSUMING
@@ -64,7 +65,8 @@ class MainViewModel(private val repository: PurchaseLogRepository) : ViewModel()
 
     // レシートをDBに初回登録
     private fun storePurchaseData(
-        orderId: String, jsonString: String, signature: String, status: String) {
+        orderId: String, jsonString: String, signature: String, status: String
+    ) {
         viewModelScope.launch {
             repository.insert(PurchaseData(0, orderId, jsonString, signature, status))
         }
@@ -179,6 +181,10 @@ class MainViewModel(private val repository: PurchaseLogRepository) : ViewModel()
             val list = purchaseUseCase.queryPurchaseData()
 
             Log.d(TAG, "query inventory done.")
+
+            // Pendingで保存された情報の同期
+            syncPendingStatus(list)
+
             if (list.isEmpty()) {
                 sb.append("No store receipts.\n")
             } else {
@@ -186,7 +192,7 @@ class MainViewModel(private val repository: PurchaseLogRepository) : ViewModel()
                     val item = repository.find(it.orderId)
                     val stateString =
                         if (item == null) {
-                            // store 全履歴に出てこなくなるため敢えて保存
+                            // store 全履歴に出すためここで登録
                             val status = if (it.isPending()) {
                                 PENDING
                             } else {
@@ -194,11 +200,7 @@ class MainViewModel(private val repository: PurchaseLogRepository) : ViewModel()
                             }
                             storePurchaseData(it.orderId, it.originalJson, it.signature, status)
                             status
-                        } else if (!it.isPending() && item.status == PENDING) {
-                            // Pendingから変わったのでステータス変更
-                            updatePurchaseStatus(it.orderId, STORED)
-                            STORED
-                        } else {
+                         } else {
                             item.status
                         }
                     sb.append("${it.orderId} : $stateString")
@@ -225,6 +227,24 @@ class MainViewModel(private val repository: PurchaseLogRepository) : ViewModel()
             }
 
             _resultString.postValue(sb.toString())
+        }
+    }
+
+    /**
+     * ローカルにPendingで保存した購入情報が、未消費レシート情報にあるかチェックしステータスを変更する<br>
+     *     ・存在しない場合 => 未消費のまま購入情報が消えた => キャンセルと見なす
+     *     ・存在し、かつレシート側がPendingでなくなった場合 => 購入直後状態に更新
+     */
+    private suspend fun syncPendingStatus(list: List<PurchaseImpl>) {
+        // ローカルの保留中トランザクションを抽出
+        val localPendings = repository.getPendingLocalReceipts()
+        localPendings.forEach { purchaseData ->
+            val receipt = list.find { it.orderId == purchaseData.orderId }
+            if (receipt == null) {
+                updatePurchaseStatus(purchaseData.orderId, CANCELED)
+            }else if(!receipt.isPending()){
+                updatePurchaseStatus(purchaseData.orderId, STORED)
+            }
         }
     }
 
